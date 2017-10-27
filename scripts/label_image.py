@@ -19,7 +19,7 @@ from __future__ import print_function
 
 import argparse
 import sys
-
+import pandas as pd
 import numpy as np
 import tensorflow as tf
 
@@ -65,6 +65,55 @@ def load_labels(label_file):
   for l in proto_as_ascii_lines:
     label.append(l.rstrip())
   return label
+
+def roc_curve(model_file, image_list_file):
+  df = pd.read_csv(image_list_file)
+  image_list = df.as_matrix()[:,0]
+  true_label_list = df.as_matrix()[:,1]
+  model_file = "tf_files/retrained_graph.pb"
+  label_file = "tf_files/retrained_labels.txt"
+  input_height = 224
+  input_width = 224
+  input_mean = 128
+  input_std = 128
+  input_layer = "input"
+  output_layer = "final_result"    
+  graph = load_graph(model_file)
+    
+  print ("----roc curve----")
+  #print(image_list)
+  print(true_label_list)
+  final_evaluation_list = []
+  for file_name,true_label in zip(image_list,true_label_list):
+    #print(file_name)
+    #print(true_label)
+    t = read_tensor_from_image_file(file_name,
+                                  input_height=input_height,
+                                  input_width=input_width,
+                                  input_mean=input_mean,
+                                  input_std=input_std)
+
+    input_name = "import/" + input_layer
+    output_name = "import/" + output_layer
+    input_operation = graph.get_operation_by_name(input_name);
+    output_operation = graph.get_operation_by_name(output_name);
+
+    with tf.Session(graph=graph) as sess:
+      results = sess.run(output_operation.outputs[0],
+                      {input_operation.outputs[0]: t})
+    results = np.squeeze(results)
+    #print(results)
+    top_k = results.argsort()[-5:][::-1]
+    labels = load_labels(label_file)
+    final_evaluation = [{"image_url":file_name, 'true_label':true_label, 'label':labels[0], 'prediction':results[0]}]
+    final_evaluation_list = final_evaluation_list + final_evaluation
+    #for i in top_k:
+    #  print(labels[i], results[i])
+  print(final_evaluation_list)
+  f = open('testing_eval.csv', 'w')
+  csv.DictWriter(f, fieldnames=['image_url', 'label']).writerows(final_evaluation_list)
+  f.close()
+
 
 if __name__ == "__main__":
   file_name = "tf_files/flower_photos/daisy/3475870145_685a19116d.jpg"
@@ -124,8 +173,12 @@ if __name__ == "__main__":
     results = sess.run(output_operation.outputs[0],
                       {input_operation.outputs[0]: t})
   results = np.squeeze(results)
+  print(results)
 
   top_k = results.argsort()[-5:][::-1]
   labels = load_labels(label_file)
   for i in top_k:
     print(labels[i], results[i])
+  
+  
+  roc_curve(model_file,"testing_ground_truth.csv")
