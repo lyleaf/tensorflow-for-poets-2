@@ -102,6 +102,7 @@ import random
 import re
 import sys
 import tarfile
+import csv
 
 import numpy as np
 from six.moves import urllib
@@ -202,6 +203,13 @@ def create_image_lists(image_dir, testing_percentage, validation_percentage):
         'testing': testing_images,
         'validation': validation_images,
     }
+  f = open('testing_ground_truth.csv', 'w')
+  content = []    
+  for label_name, bundle in result.iteritems():
+    dic = [{"image_url":os.path.join(image_dir,bundle['dir'],image_url), 'label':label_name} for image_url in bundle['testing']]
+    content = content+dic
+    csv.DictWriter(f, fieldnames=['image_url', 'label']).writerows(content)
+  f.close()
   return result
 
 
@@ -1118,13 +1126,22 @@ def main(_):
             FLAGS.bottleneck_dir, FLAGS.image_dir, jpeg_data_tensor,
             decoded_image_tensor, resized_image_tensor, bottleneck_tensor,
             FLAGS.architecture))
+    #print(test_bottlenecks[0])
+    #print(test_ground_truth[0])
+    #print(test_filenames[0])
+    
     test_accuracy, predictions = sess.run(
         [evaluation_step, prediction],
         feed_dict={bottleneck_input: test_bottlenecks,
                    ground_truth_input: test_ground_truth})
     tf.logging.info('Final test accuracy = %.1f%% (N=%d)' %
                     (test_accuracy * 100, len(test_bottlenecks)))
+    tf.logging.info('ground truth' + str(test_ground_truth))
+    
+    #tf.logging.info('predictions' + str(predictions))
+    #tf.logging.info('test_bottlenecks' + str(test_bottlenecks))
 
+    FLAGS.print_misclassified_test_images = True
     if FLAGS.print_misclassified_test_images:
       tf.logging.info('=== MISCLASSIFIED TEST IMAGES ===')
       for i, test_filename in enumerate(test_filenames):
