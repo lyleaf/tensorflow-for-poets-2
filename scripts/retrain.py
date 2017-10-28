@@ -1141,7 +1141,6 @@ def main(_):
     #tf.logging.info('predictions' + str(predictions))
     #tf.logging.info('test_bottlenecks' + str(test_bottlenecks))
 
-    FLAGS.print_misclassified_test_images = True
     if FLAGS.print_misclassified_test_images:
       tf.logging.info('=== MISCLASSIFIED TEST IMAGES ===')
       for i, test_filename in enumerate(test_filenames):
